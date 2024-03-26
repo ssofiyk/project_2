@@ -1,1 +1,152 @@
+from telebot import types
+import requests
+import re
+import pandas as pd
+from collections import Counter
+import matplotlib.pyplot as plt
+import os
+
+TOKEN = "33944c7033944c7033944c70213083c0ed3339433944c70567aa4fce3364ce4fa71e215"
+VERSION = "5.199"
+
+
+def make_keyboard():
+
+    keyboard = types.InlineKeyboardMarkup()
+
+    button1 = types.InlineKeyboardButton(text="Посмотреть распределение по городам", callback_data="button1")
+    button2 = types.InlineKeyboardButton(text="Посмотреть распределение по университетам", callback_data="button2")
+    button3 = types.InlineKeyboardButton(text="Вернуться на главную страницу", callback_data="button3")
+    button4 = types.InlineKeyboardButton(text="help", callback_data="button4")
+
+    keyboard.add(button1)
+    keyboard.add(button2)
+    keyboard.add(button3)
+    keyboard.add(button4)
+
+    return keyboard
+
+
+def get_plots(user_id, df):
+
+    try:
+        os.mkdir('users/' + str(user_id))
+    except:
+        pass
+
+    all_cities = []
+    a = list(df['city'])
+    for i in a:
+        all_cities.append(list(i.values())[1])
+
+    cities_len = Counter(all_cities)
+    cities_len.items()
+
+    df_cities = pd.DataFrame(list(cities_len.items()), columns=['city', 'counter'])
+    df_cities = df_cities.sort_values(by='counter', ascending=False)
+    df_cities = df_cities[:15]
+
+    x = df_cities['city']
+    y = df_cities['counter']
+
+    plt.figure(figsize=(40, 20))
+    bars = plt.bar(x, y, color='teal')
+
+    plt.xlabel('Города', fontsize=40)
+    plt.ylabel('Количество пользователей', fontsize=40)
+    plt.title('Распределение пользователей по городам', fontsize=40)
+
+    for bar, counter in zip(bars, y):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() - 0.1, counter, ha='center', va='top', fontsize=50)
+
+    plt.xticks(x, rotation=15, ha='right', fontsize=30)
+    plt.yticks(y, fontsize=40)
+    plt.savefig('users/' + user_id + '/saved_figure.png', transparent=True)
+
+    all_uni = []
+    b = list(df['universities'])
+    for i in b:
+        if type(i) == list:
+            for k in i:
+                name_uni = k['name']
+                all_uni.append(name_uni)
+
+    uni_len = Counter(all_uni)
+
+    df_uni = pd.DataFrame(list(uni_len.items()), columns=['uni', 'counter'])
+    df_uni = df_uni.sort_values(by='counter', ascending=False)
+    df_uni = df_uni[:15]
+
+    x_1 = df_uni['uni']
+    y_1 = df_uni['counter']
+
+    plt.figure(figsize=(40, 20))
+    bars_1 = plt.bar(x_1, y_1, color='lightcoral')
+
+    plt.xlabel('Университеты', fontsize=40)
+    plt.ylabel('Количество пользователей', fontsize=40)
+    plt.title('Распределение пользователей по университетам', fontsize=40)
+
+    for bar_1, counter_1 in zip(bars_1, y_1):
+        plt.text(bar_1.get_x() + bar_1.get_width() / 2, bar_1.get_height() - 0.1, counter_1, ha='center', va='top', fontsize=50)
+
+    plt.xticks(rotation=15, ha='right', fontsize=30)
+    plt.yticks(y_1, fontsize=40)
+
+    plt.savefig('users/' + user_id + '/saved_figure2.png', transparent=True)
+
+
+def get_data(user_id, text):
+
+    global TOKEN
+    global VERSION
+
+    print('get_data')
+
+    group_members = "https://api.vk.com/method/groups.getMembers"
+    group_url = text
+    pattern = r'(?:https?:\/\/)?(?:www\.)?vk\.com\/(\w+)'
+    match = re.search(pattern, group_url)
+    if match:
+        group = match.group(1)
+    else:
+        return 'Группа не найдена'
+
+    data = requests.get(
+        group_members,
+        params={
+            'group_id': group,
+            'access_token': TOKEN,
+            'v': VERSION,
+            'offset': 100
+        }
+    ).json()
+
+    users_get_url = "https://api.vk.com/method/users.get"
+    all_users_data = []
+
+    for user in data["response"]["items"][:100]:
+
+        user_info = requests.get(
+            users_get_url,
+            params={
+                'user_ids': user,
+                'fields': "city, country, universities",
+                'access_token': TOKEN,
+                'v': VERSION
+            }
+        ).json()
+        a = list(user_info.keys())
+        for i in a:
+            if i == 'response':
+                all_users_data.extend(user_info['response'])
+
+    df = pd.DataFrame(all_users_data)
+    df = df.dropna(subset=["city", "country"])
+    df = df[["city", "country", "universities"]]
+
+    get_plots(user_id, df)
+
+
+
 
