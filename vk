@@ -6,7 +6,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import os
 
-TOKEN = "33944c7033944c7033944c70213083c0ed3339433944c70567aa4fce3364ce4fa71e215"
+TOKEN = "ВАШ_ТОКЕН"
 VERSION = "5.199"
 
 
