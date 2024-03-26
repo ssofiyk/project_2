@@ -1,1 +1,8 @@
+TOKEN = 'ВАШ_ТОКЕН'
+PROXY = {
+    'https': 'socks5://3334135028:Ma45DvwH@orbtl.s5.opennetwork.cc:999',
+    'socks5': 'socks5://3334135028:Ma45DvwH@orbtl.s5.opennetwork.cc:999'
+}
+WEBHOOK_HOST = 'ВАШ_ЮЗЕРНЕЙМ.pythonanywhere.com'
+WEBHOOK_PORT = '443'
 
