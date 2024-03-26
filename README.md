@@ -25,7 +25,5 @@
 
 - София Герен - @ssofiyk
 
-Если Вы хотите связаться с авторами бота, нажите кнопку 'help'
-
 ## Ссылка на pythonanywhere.com
 ssofiyk.pythonanywhere.com
