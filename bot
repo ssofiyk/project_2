@@ -1,8 +1,10 @@
+
 import telebot
 from vk import make_keyboard, get_data
 import flask
 import conf
 import os
+import json
 
 WEBHOOK_URL_BASE = "https://{}:{}".format(conf.WEBHOOK_HOST, conf.WEBHOOK_PORT)
 WEBHOOK_URL_PATH = "/{}/".format(conf.TOKEN)
@@ -13,6 +15,8 @@ bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
 app = flask.Flask(__name__)
 
 DEBUG = True
+
+last_handled_msg = {}
 
 @bot.message_handler(commands=["start"])
 def start(m, res=False):
@@ -26,15 +30,27 @@ def start(m, res=False):
 @bot.message_handler(content_types=["text"])
 def handle_text(m):
 
-    user_id = str(m.chat.id)
-    #print(user_id)
+    global last_handled_msg
 
-    bot.send_message(m.chat.id, 'Сейчас найдем информацию по сообществу ' + m.text + '. Это может занять некоторое время :)')
-    if get_data(user_id, m.text) == 'Группа не найдена':
-        #print('saved')
-        bot.send_message(m.chat.id, 'Попробуйте ввести другую группу')
-    else:
-        bot.send_message(m.chat.id, "Нажмите кнопку, чтобы выбрать что вы хотите сделать", reply_markup=make_keyboard())
+    user_id = str(m.chat.id)
+    print(user_id)
+
+    if (last_handled_msg.get(user_id, -1) !=  m.message_id):
+
+        try:
+            bot.send_message(m.chat.id, 'Сейчас найдем информацию по сообществу ' + m.text + '. Это может занять некоторое время :)')
+            if get_data(user_id, m.text) == 'Группа не найдена':
+                #print('saved')
+                bot.send_message(m.chat.id, 'Группа не найдена. Попробуйте ввести другую группу')
+            elif get_data(user_id, m.text) == 'Группа закрыта':
+                bot.send_message(m.chat.id, 'Группа закрыта, или в ней скрыты участники. Попробуйте вставить другую ссылку.')
+            else:
+                bot.send_message(m.chat.id, "Нажмите кнопку, чтобы выбрать что вы хотите сделать", reply_markup=make_keyboard())
+
+            last_handled_msg[user_id] = m.message_id
+
+        except:
+            last_handled_msg[user_id] = m.message_id
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -65,16 +81,28 @@ def callback_inline(call):
             bot.send_message(call.message.chat.id, "Нажмите кнопку, чтобы выбрать, что вы хотите сделать", reply_markup=make_keyboard())
 
 
+json_id_dict = {}
+
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     global DEBUG
+    global json_id_dict
+
     if flask.request.headers.get('content-type') == 'application/json':
         json_string = flask.request.get_data().decode('utf-8')
-        if DEBUG:
-            print('json  ' + json_string)
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
+        if json_id_dict.get(json.loads(json_string)['update_id'], -1) <=2:
+            if DEBUG:
+                print('json  ' + json_string)
+            update = telebot.types.Update.de_json(json_string)
+            if json.loads(json_string)['update_id'] not in json_id_dict:
+                json_id_dict[json.loads(json_string)['update_id']] = 1
+            else:
+                json_id_dict[json.loads(json_string)['update_id']] = json_id_dict[json.loads(json_string)['update_id']] + 1
+
+
+            bot.process_new_updates([update])
+            return ''
+        else:
+            return ''
     else:
         flask.abort(403)
-
